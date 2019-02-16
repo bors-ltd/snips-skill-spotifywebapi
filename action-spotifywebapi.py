@@ -1,11 +1,13 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-
+from __future__ import print_function
+import sys
 import ConfigParser
 from hermes_python.hermes import Hermes
 import spotipy
 from spotipy import oauth2
+import os
 import re
 import unicodedata
 import importlib
@@ -18,6 +20,7 @@ MQTT_ADDR = "{}:{}".format(MQTT_IP_ADDR, str(MQTT_PORT))
 
 
 _sp_client = None
+_sp_oauth = None
 _volume_add = 10
 
 
@@ -52,15 +55,17 @@ def _exception_spotify(spotify_exception, action=None):
     :return:
     """
     action = '[{}]'.format(action) if action else ''
-    print('[Exception error]{} Spotify error: {}'.format(action, spotify_exception))
+    print('[Exception error]{} Spotify error: {}'.format(action, spotify_exception), file=sys.stderr)
     msg = spotify_exception.msg
     if msg.find('\n') != -1:
         msg = msg.split('\n')[1].strip()
 
+    if msg == 'The access token expired':
+        _gen_spotify_client(refresh=True)
     if msg in i18n.EXCEPTION_MSG_DICT:
         text = i18n.EXCEPTION_MSG_DICT[msg]
     else:
-        print('[Exception error]{} No have translate for this msg error: {}'.format(action, msg))
+        print('[Exception error]{} No have translate for this msg error: {}'.format(action, msg), file=sys.stderr)
         text = i18n.DEFAULT_EXCEPTION
     global EXCEPTION_MSG
     EXCEPTION_MSG = text
@@ -81,8 +86,7 @@ def _simple_end(hermes, intentMessage, text=''):
     EXCEPTION_MSG = None
 
 
-def _get_cached_token(username, client_id, client_secret,
-                      redirect_uri="http://localhost/", scope='', cache_path=None):
+def _gen_spotify_client(refresh=False):
     """
     Return the token from cache file
     :param username: username of the premium spotify account
@@ -93,16 +97,66 @@ def _get_cached_token(username, client_id, client_secret,
     :param cache_path: path of the token file
     :return: token
     """
-    if not cache_path:
-        cache_path = '.cache-{}'.format(username.lower()) 
-    sp_oauth = oauth2.SpotifyOAuth(client_id=client_id, client_secret=client_secret,
+    # Defined default redirect uri
+    redirect_uri = r'http://localhost/'
+
+    # Defined default scope
+    scope = ''
+    # Play music and control playback on your other devices.
+    scope += ' streaming'
+    # Control playback on your Spotify clients and Spotify Connect devices.
+    scope += ' user-modify-playback-state user-read-currently-playing user-read-playback-state'
+    # Access your saved tracks and albums.
+    scope += ' user-library-read'
+    # Access your private playlist
+    scope += ' playlist-read-private'
+    # Modify your playlist and private playlist
+    scope += ' playlist-modify playlist-modify-private'
+
+    # Default init conf
+    username = None
+    client_id = None
+    client_secret = None
+
+    # Read the config
+    config = read_configuration_file("./config.ini")
+    if config.get("secret") is not None:
+        username = config["secret"].get("username", None)
+        client_id = config["secret"].get("client_id", None)
+        client_secret = config["secret"].get("client_secret", None)
+        redirect_uri = config["secret"].get("redirect_uri", r'http://localhost/')
+
+    # Check options
+    if not client_id or not client_secret:
+        print("[Error] No client_id, client_secret or redirect_uri found, it's need for connection !\n\
+            To get this create a APP and set allowed redirect_uri on:\n\
+            https://developer.spotify.com/my-applications/#!/applications")
+        exit(2)
+
+    # Check username
+    if not username:
+        print("[_gen_spotify_client][Error] No username found, it's need for connection !", file=sys.stderr)
+        exit(2)
+
+    cache_path = './.cache-{}'.format(username.lower())
+    if os.access(cache_path, os.R_OK):
+        print("[_gen_spotify_client][Warning] Couldn't read token cache file: {}".format(cache_path), file=sys.stderr)
+
+    if os.access(cache_path, os.W_OK):
+        print("[_gen_spotify_client][Warning] Couldn't write token cache file: {}".format(cache_path), file=sys.stderr)
+
+    global _sp_oauth
+    _sp_oauth = oauth2.SpotifyOAuth(client_id=client_id, client_secret=client_secret,
                                    redirect_uri=redirect_uri, scope=scope, cache_path=cache_path)
-    token_info = sp_oauth.get_cached_token()
-    
-    if token_info:
-        return token_info['access_token']
-    else:
-        return None
+
+    token_info = _sp_oauth.get_cached_token()
+
+    if refresh:
+        is_expired = _sp_oauth.is_token_expired(token_info)
+        print("[_gen_spotify_client] Refresh new token (token expire: {})".format(is_expired))
+        token_info = _sp_oauth.refresh_access_token(token_info['refresh_token'])
+    global _sp_client
+    _sp_client = spotipy.Spotify(auth=token_info['access_token'])
 
 
 def _get_current_volume():
@@ -529,58 +583,8 @@ if __name__ == "__main__":
         language = json.load(json_file)["language"]
 
     i18n = importlib.import_module("translations." + language)
-    
-    # Defined default redirect uri
-    redirect_uri = r'http://localhost/'
-    
-    # Defined default scope
-    scope = ''
-    # Play music and control playback on your other devices.
-    scope += ' streaming'
-    # Control playback on your Spotify clients and Spotify Connect devices.
-    scope += ' user-modify-playback-state user-read-currently-playing user-read-playback-state'
-    # Access your saved tracks and albums.
-    scope += ' user-library-read'
-    # Access your private playlist
-    scope += ' playlist-read-private'
-    # Modify your playlist and private playlist
-    scope += ' playlist-modify playlist-modify-private'
-    
-    # Default init conf
-    username = None
-    client_id = None
-    client_secret = None
-    
-    # Read the config
-    config = read_configuration_file("./config.ini")
-    if config.get("secret") is not None:        
-        username = config["secret"].get("username", None)
-        client_id = config["secret"].get("client_id", None)
-        client_secret = config["secret"].get("client_secret", None)
-        redirect_uri = config["secret"].get("redirect_uri", r'http://localhost/')
-        
-    # Check options
-    if not client_id or not client_secret:
-        print("[Error] No client_id, client_secret or redirect_uri found, it's need for connection !\n\
-        To get this create a APP and set allowed redirect_uri on:\n\
-        https://developer.spotify.com/my-applications/#!/applications")
-        exit(2)
-    
-    # Check username
-    if not username:
-        print("[Error] No username found, it's need for connection !")
-        exit(2)
-    
-    token = _get_cached_token(username=username, client_id=client_id, client_secret=client_secret,
-                              redirect_uri=redirect_uri, scope=scope,
-                              cache_path='.cache-{}'.format(username.lower()))
 
-    print('Get the cached token: OK')
-    if not token:
-        print("[Error] No cached token find ! Gen the token with:\npython token-generator.py")
-        exit(3)
-    
-    _sp_client = spotipy.Spotify(auth=token)
+    _gen_spotify_client()
     
     with Hermes(MQTT_ADDR) as h:
         h.subscribe_intent('Tealque:volumeUp', volumeUp)\
