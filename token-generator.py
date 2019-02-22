@@ -1,11 +1,17 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
+
+from __future__ import print_function
 import spotipy
 import spotipy.util as util
-import ConfigParser
 import argparse
 import logging
+
+try:
+    import ConfigParser
+except ImportError:
+    import configparser as ConfigParser
 
 
 logging.basicConfig()
@@ -24,7 +30,7 @@ def read_configuration_file(configuration_file):
             conf_parser = SnipsConfigParser()
             conf_parser.readfp(f)
             return conf_parser.to_dict()
-    except (IOError, ConfigParser.Error) as e:
+    except (IOError, ConfigParser.Error):
         return dict()
 
 
@@ -35,14 +41,14 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--config', dest='config', type=str, default='config.ini',
                         help='Path to Snips SpotifyWebApi config')
     parser.add_argument('-u', '--user', '--username', dest='username', type=str, default=None,
-                        help='Username to acount of spotify')
+                        help='Username to account of spotify')
     
     parser.add_argument('--id', '--client-id', dest='client_id', type=str, default=None,
-                        help='client_id of your app on spotify devloper')
+                        help='client_id of your app on spotify developer')
     parser.add_argument('--secret', '--client-secret', dest='client_secret', type=str, default=None,
-                        help='client_secret of your app on spotify devloper')
+                        help='client_secret of your app on spotify developer')
     parser.add_argument('-r', '--redirect-uri', dest='redirect_uri', type=str, default=None,
-                        help='redirect_uri of your app on spotify devloper')
+                        help='redirect_uri of your app on spotify developer')
     parser.add_argument('-s', '--scope', dest='scope', type=str, default=None, help='Scope for API write')
     
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default=False, help='Set verbose mode')
@@ -111,7 +117,7 @@ if __name__ == "__main__":
     logger.debug('cache_path: {}'.format(cache_path))
     
     logger.info('Try to gen token with util.prompt_for_user_token')
-    # Get the tocken
+    # Get the token
     token = util.prompt_for_user_token(username=username,
                                        client_id=client_id, client_secret=client_secret,
                                        scope=scope, redirect_uri=redirect_uri)

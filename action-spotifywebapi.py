@@ -3,7 +3,6 @@
 
 from __future__ import print_function
 import sys
-import ConfigParser
 from hermes_python.hermes import Hermes
 import spotipy
 from spotipy import oauth2
@@ -13,10 +12,15 @@ import unicodedata
 import importlib
 import json
 
+try:
+    import ConfigParser
+except ImportError:
+    import configparser as ConfigParser
 
-MQTT_IP_ADDR = "localhost"
-MQTT_PORT = 1883
-MQTT_ADDR = "{}:{}".format(MQTT_IP_ADDR, str(MQTT_PORT))
+
+MQTT_IP_ADDR = "localhost"  # type: str
+MQTT_PORT = 1883  # type: int
+MQTT_ADDR = "{}:{}".format(MQTT_IP_ADDR, str(MQTT_PORT))  # type: str
 
 
 _sp_client = None
@@ -88,13 +92,8 @@ def _simple_end(hermes, intentMessage, text=''):
 
 def _gen_spotify_client(refresh=False):
     """
-    Return the token from cache file
-    :param username: username of the premium spotify account
-    :param client_id: client_id of the spotify app
-    :param client_secret: client_secret of the spotify app
-    :param redirect_uri: redirect_uri of the spotify app
-    :param scope: scope need to use
-    :param cache_path: path of the token file
+    Return the token from cache file and refresh if you want
+    :param refresh: True or False, refresh the token
     :return: token
     """
     # Defined default redirect uri
@@ -147,7 +146,7 @@ def _gen_spotify_client(refresh=False):
 
     global _sp_oauth
     _sp_oauth = oauth2.SpotifyOAuth(client_id=client_id, client_secret=client_secret,
-                                   redirect_uri=redirect_uri, scope=scope, cache_path=cache_path)
+                                    redirect_uri=redirect_uri, scope=scope, cache_path=cache_path)
 
     token_info = _sp_oauth.get_cached_token()
 
@@ -442,8 +441,7 @@ def playPlaylist(hermes, intentMessage):
             except spotipy.client.SpotifyException as e:
                 _exception_spotify(e, 'playPlaylist')
             # Try to ask to user > for the next version
-            # text = u"J'ai trouvé {} playlist correspondante dit moi la quel vous souhaitez: {}".format(
-            #                     len_playlist_match, ', '.join(playlist_match_name))
+            # text = i18n.MULTIPLES_PLAYLIST_FOUND.format(len_playlist_match, ', '.join(playlist_match_name))
             # hermes.publish_continue_session(intentMessage.session_id, text, ['Tealque:playPlaylist'])
         else:
             print('Playlist not find')
@@ -500,7 +498,7 @@ def addSong(hermes, intentMessage):
 # Function
 def modeEnable(hermes, intentMessage):
     """
-    Enable shuffle or repeapt mode
+    Enable shuffle or repeat mode
     :param hermes: message manager of snips
     :param intentMessage: intent message incoming from snips broker
     :return: void
@@ -543,7 +541,7 @@ def modeEnable(hermes, intentMessage):
 
 def modeDisable(hermes, intentMessage):
     """
-    Disable shuffle or repeapt mode
+    Disable shuffle or repeat mode
     :param hermes: message manager of snips
     :param intentMessage: intent message incoming from snips broker
     :return: void
