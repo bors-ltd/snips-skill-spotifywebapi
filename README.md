@@ -30,7 +30,6 @@ Register your app at [My Applications](https://developer.spotify.com/my-applicat
 After creation on setting of your enter redirect_uri (example: 'http://localhost/' is the default on this app)
 Warning: for redirect_uri http://localhost/ and http://localhost is not the same (the later '/' is missing) you can enter some redirect_uri
 
-
 Now you can enter on the App or on config.ini client_id, client_secret, redirect_uri and your username
 
 ## Gen the token
@@ -38,7 +37,7 @@ Now you can enter on the App or on config.ini client_id, client_secret, redirect
 ### From the script on snips device
 
 - Go to the app dir (default: /var/lib/snips/skills/snips-skill-spotifywebapi/)
-- Run `setup.sh` (it will create a virtualenv, install the dependencies in it and rename config.ini.default to config.ini)
+- Run `setup.sh` (it will create a virtualenv, install the dependencies in it and rename config.ini.default to config.ini) or if virtualenv is already installed run `. venv/bin/activate`
 - Generate token with ./token-generator.py
   - copy the URL on your browser
   - when you redirect on your redirect_uri, copy the complete url and paste on script
@@ -60,4 +59,3 @@ python token-generator.py
 - When you redirect on your redirect_uri, copy the complete url and paste on script
   - the script generate the token on .cache-USERNAME copy this file on your app dir to your snips device 
   (default: /var/lib/snips/skills/snips-skill-spotifywebapi/)
-
